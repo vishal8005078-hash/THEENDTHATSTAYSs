@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The End That Stays</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #111010;
+  --paper: #f2ede6;
+  --muted: #9a9490;
+  --rule: #d8d2c9;
+  --green: #3a7a50;
+  --red: #8b3a3a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9000;
+}
+/* ── LOADER ── */
+#loader {
+  position:fixed; inset:0; background:var(--ink);
+  z-index:9999; display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:18px;
+  transition: opacity .6s ease, visibility .6s ease;
+}
+#loader.gone { opacity:0; visibility:hidden; pointer-events:none; }
+.ld-title {
+  font-family:'DM Serif Display',serif; font-style:italic;
+  font-size:clamp(1.6rem,6vw,2.4rem); color:var(--paper);
+  letter-spacing:-1px; overflow:hidden;
+}
+.ld-title span { display:inline-block; transform:translateY(110%); animation:ldUp .7s cubic-bezier(.16,1,.3,1) .2s forwards; }
+.ld-bar-wrap { width:120px; height:1px; background:rgba(242,237,230,.15); }
+.ld-bar { height:100%; background:var(--paper); width:0; animation:ldBar 1.1s ease .1s forwards; }
+.ld-sub { font-size:9px; letter-spacing:3px; text-transform:uppercase; color:rgba(242,237,230,.35); opacity:0; animation:ldFade .5s ease .6s forwards; }
+@keyframes ldUp  { to { transform:translateY(0); } }
+@keyframes ldBar { to { width:100%; } }
+@keyframes ldFade{ to { opacity:1; } }
+
+/* ── CUSTOM CURSOR (desktop only) ── */
+@media(pointer:fine){
+  body { cursor:none; }
+  a,button,input,.item-row,.q-row,.p-card { cursor:none; }
+}
+#cur, #cur2 {
+  position:fixed; border-radius:50%; pointer-events:none;
+  z-index:8999; transform:translate(-50%,-50%);
+  transition:width .25s,height .25s,opacity .25s;
+}
+#cur  { width:8px; height:8px; background:var(--ink); border:1px solid rgba(17,16,16,.4); mix-blend-mode:multiply; }
+#cur2 { width:28px; height:28px; border:1px solid rgba(17,16,16,.25); background:transparent; }
+
+/* ── FADE-UP (page load) ── */
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+.fi  { animation: fadeUp 0.7s cubic-bezier(.16,1,.3,1) both; }
+.d1{animation-delay:.1s}.d2{animation-delay:.22s}.d3{animation-delay:.34s}
+.d4{animation-delay:.46s}.d5{animation-delay:.58s}.d6{animation-delay:.7s}
+
+/* ── SCROLL REVEAL ── */
+.sr { opacity:0; transform:translateY(22px); transition:opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+.sr.vis { opacity:1; transform:none; }
+
+/* ── H1 LINE DRAW ── */
+h1 .line { display:inline-block; position:relative; }
+h1 .line::after {
+  content:''; position:absolute; bottom:-2px; left:0;
+  width:0; height:1px; background:var(--ink);
+  transition:width 1s cubic-bezier(.16,1,.3,1) 1.2s;
+}
+h1 .line.drawn::after { width:100%; }
+
+/* ── STAT CARD PULSE ON LOAD ── */
+@keyframes statPop {
+  0%   { transform:scale(1); }
+  40%  { transform:scale(1.03); }
+  100% { transform:scale(1); }
+}
+.stat.pop { animation:statPop .55s cubic-bezier(.16,1,.3,1) both; }
+
+/* ── QUOTE ROW WIPE ── */
+.q-t {
+  background: linear-gradient(to right, var(--ink) 50%, transparent 50%);
+  background-size:200% 100%; background-position:100% 0;
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  transition:background-position .6s cubic-bezier(.16,1,.3,1);
+}
+.q-row.vis .q-t { background-position:0 0; }
+
+/* ── PREVIEW BOX ANIMATE IN ── */
+@keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
+.preview-box.show { animation:slideDown .35s cubic-bezier(.16,1,.3,1); }
+
+/* ── BTN INK FILL ── */
+.btn { position:relative; overflow:hidden; }
+.btn::after {
+  content:''; position:absolute; inset:0;
+  background:rgba(255,255,255,.12);
+  transform:scaleX(0); transform-origin:left;
+  transition:transform .3s ease;
+}
+.btn:hover::after { transform:scaleX(1); }
+
+/* ── PULSING EFFECTS ── */
+
+/* Slow heartbeat for stat values */
+@keyframes breathe {
+  0%,100% { opacity:1; }
+  50%      { opacity:.55; }
+}
+@keyframes breatheSlow {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.7; transform:scale(0.97); }
+}
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 0 0 rgba(17,16,16,0); }
+  50%      { box-shadow: 0 0 0 4px rgba(17,16,16,0.06); }
+}
+@keyframes dotPulse {
+  0%,100% { transform:translate(-50%,-50%) scale(1); opacity:.8; }
+  50%      { transform:translate(-50%,-50%) scale(1.9); opacity:.2; }
+}
+@keyframes borderPulse {
+  0%,100% { border-color: var(--rule); }
+  50%      { border-color: rgba(17,16,16,0.22); }
+}
+@keyframes labelBlink {
+  0%,100% { opacity:.5; letter-spacing:3px; }
+  50%      { opacity:.9; letter-spacing:3.5px; }
+}
+@keyframes barGlow {
+  0%,100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 8px 1px rgba(17,16,16,0.13); }
+}
+@keyframes tickerFade {
+  0%,100% { opacity:.65; }
+  50%      { opacity:.95; }
+}
+@keyframes footerPulse {
+  0%,100% { opacity:1; letter-spacing:-1px; }
+  50%      { opacity:.6; letter-spacing:-.5px; }
+}
+@keyframes eyebrowPulse {
+  0%,100% { opacity:.5; }
+  50%      { opacity:1; }
+}
+@keyframes ruleExpand {
+  0%,100% { background:var(--rule); }
+  50%      { background:rgba(17,16,16,0.18); }
+}
+
+/* Apply pulses */
+.stat-v          { animation: breatheSlow 3.5s ease-in-out infinite; }
+.stat-v.neg      { animation: breatheSlow 3.5s ease-in-out infinite .4s; }
+.stat-v.pos      { animation: breatheSlow 3.5s ease-in-out infinite .8s; }
+
+.stat            { animation: pulseGlow 3.5s ease-in-out infinite; }
+.stat:nth-child(2){ animation-delay:.6s; }
+.stat:nth-child(3){ animation-delay:1.2s; }
+
+.bar-fill        { animation: barGlow 3s ease-in-out infinite 1.5s; }
+
+.sec-label       { animation: labelBlink 4s ease-in-out infinite; }
+
+.ticker-inner span { animation: tickerFade 4s ease-in-out infinite; }
+.ticker-inner span:nth-child(odd) { animation-delay:2s; }
+
+.eyebrow         { animation: eyebrowPulse 3s ease-in-out infinite; }
+
+.f-name          { animation: footerPulse 4s ease-in-out infinite; }
+
+/* Cursor dot pulse */
+#cur             { animation: dotPulse 2.5s ease-in-out infinite; }
+
+/* Section border pulse */
+.sec             { animation: borderPulse 5s ease-in-out infinite; }
+.sec:nth-child(2){ animation-delay:1s; }
+.sec:nth-child(3){ animation-delay:2s; }
+.sec:nth-child(4){ animation-delay:3s; }
+
+/* quote number pulse */
+.q-n             { animation: breathe 4s ease-in-out infinite; }
+.q-row:nth-child(even) .q-n { animation-delay:2s; }
+
+/* header border bottom pulse */
+header           { animation: borderPulse 5s ease-in-out infinite; }
+
+/* progress bar track pulse */
+.bar-track       { animation: ruleExpand 4s ease-in-out infinite 1s; }
+
+/* ── TICKER PAUSE ON HOVER ── */
+.ticker-wrap:hover .ticker-inner { animation-play-state:paused; }
+
+/* HEADER */
+header {
+  border-bottom: 1px solid var(--rule);
+  padding: 28px 24px 22px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px;
+}
+.eyebrow { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+h1 { font-family:'DM Serif Display',serif; font-size:clamp(2rem,8vw,3rem); line-height:1; letter-spacing:-1px; }
+h1 em { font-style:italic; }
+.hdr-right { text-align:right; font-size:10px; color:var(--muted); line-height:2; }
+.hdr-right strong { display:block; font-family:'DM Serif Display',serif; font-size:1rem; color:var(--ink); font-weight:400; }
+.hdr-right a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--rule); font-size:11px; }
+
+/* TICKER */
+.ticker-wrap { background:var(--ink); overflow:hidden; padding:9px 0; border-bottom:1px solid var(--rule); }
+.ticker-inner { display:flex; gap:48px; white-space:nowrap; animation:tick 30s linear infinite; }
+.ticker-inner span { font-family:'DM Serif Display',serif; font-style:italic; font-size:11px; color:var(--paper); opacity:.65; flex-shrink:0; }
+.ticker-inner span::before { content:'— '; opacity:.35; }
+@keyframes tick { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+/* LAYOUT */
+main { max-width:640px; margin:0 auto; padding:0 24px 80px; }
+
+/* SECTION */
+.sec { padding:30px 0; border-bottom:1px solid var(--rule); }
+.sec:last-child { border:none; }
+.sec-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+.sec-label { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); }
+
+/* BUDGET STATS */
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-bottom:16px; }
+.stat { background:var(--paper); padding:16px 14px; }
+.stat-l { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+.stat-v { font-family:'DM Serif Display',serif; font-size:1.45rem; line-height:1; letter-spacing:-.5px; }
+.pos{color:var(--green)} .neg{color:var(--red)}
+.bar-head { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:6px; }
+.bar-track { height:2px; background:var(--rule); }
+.bar-fill { height:100%; background:var(--ink); width:0; transition:width 1.5s cubic-bezier(.16,1,.3,1); }
+
+/* ITEMS */
+.items-list { display:flex; flex-direction:column; gap:1px; background:var(--rule); border:1px solid var(--rule); }
+.item-row {
+  background:var(--paper);
+  display:grid; grid-template-columns:56px 1fr auto;
+  gap:14px; align-items:center; padding:12px 14px;
+  border-left: 2px solid transparent;
+  opacity:0; transform:translateX(-10px);
+  transition: background .2s, border-color .4s, opacity .5s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
+}
+.item-row.vis { opacity:1; transform:none; }
+.item-row:hover { background:#ede8e0; border-left-color: var(--ink); }
+.item-img { width:56px; height:56px; object-fit:cover; filter:grayscale(100%) contrast(1.1); display:block; flex-shrink:0; }
+.item-emoji { width:56px; height:56px; background:var(--rule); display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
+.item-name { font-family:'DM Serif Display',serif; font-size:1rem; line-height:1.2; margin-bottom:2px; }
+.item-cat { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+.item-price { text-align:right; line-height:2; }
+.item-bud { font-size:10px; color:var(--muted); }
+.item-cost { font-size:13px; font-weight:500; }
+
+/* SUGGEST */
+.suggest-desc { font-size:11px; color:var(--muted); margin-bottom:14px; line-height:1.8; }
+.suggest-desc strong { color:var(--ink); }
+.input-row { display:flex; gap:8px; margin-bottom:12px; }
+.s-input {
+  flex:1; background:transparent;
+  border:none; border-bottom:1px solid var(--ink);
+  padding:9px 2px;
+  font-family:'DM Mono',monospace; font-size:13px; color:var(--ink);
+  outline:none;
+}
+.s-input::placeholder { color:var(--muted); }
+.btn { background:var(--ink); color:var(--paper); border:none; padding:9px 18px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px; cursor:pointer; transition:opacity .2s; }
+.btn:hover { opacity:.75; }
+.preview-box { display:none; background:#ede8e0; border:1px solid var(--rule); padding:16px; margin-bottom:12px; }
+.preview-lbl { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.preview-msg { font-family:'DM Serif Display',serif; font-style:italic; font-size:1rem; line-height:1.5; }
+.action-row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center; }
+.btn-o { background:transparent; color:var(--ink); border:1px solid var(--rule); padding:8px 14px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px; cursor:pointer; transition:border-color .2s; }
+.btn-o:hover { border-color:var(--ink); }
+.copied { font-size:10px; color:var(--green); display:none; }
+.ig-steps { display:none; font-size:10px; color:var(--muted); line-height:2; margin-top:10px; }
+.ig-steps a { color:var(--ink); }
+.ig-steps span { display:block; }
+
+/* TEAM */
+.team-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--rule); border:1px solid var(--rule); }
+@media(max-width:460px){ .team-grid{grid-template-columns:1fr;} }
+.p-card { background:var(--paper); padding:16px 14px; transition:background .2s; }
+.p-card:hover { background:#ede8e0; }
+.p-card.main { background:var(--ink); color:var(--paper); }
+.p-card.main:hover { background:#1c1c1c; }
+.p-role { font-size:9px; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; color:var(--muted); }
+.p-card.main .p-role { color:rgba(242,237,230,.45); }
+.p-name { font-family:'DM Serif Display',serif; font-size:1.1rem; margin-bottom:3px; }
+.p-ig { font-size:10px; color:var(--muted); }
+.p-card.main .p-ig { color:rgba(242,237,230,.5); }
+.p-ig a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--rule); }
+.p-card.main .p-ig a { color:var(--paper); border-color:rgba(242,237,230,.3); }
+
+/* QUOTES */
+.q-list { display:flex; flex-direction:column; }
+.q-row { display:flex; gap:14px; align-items:baseline; padding:13px 0; border-bottom:1px solid var(--rule); transition:padding-left .25s ease; }
+.q-row:last-child { border:none; }
+.q-row:hover { padding-left:8px; }
+.q-n { font-size:9px; color:var(--muted); flex-shrink:0; width:18px; }
+.q-t { font-family:'DM Serif Display',serif; font-style:italic; font-size:clamp(.9rem,2.5vw,1.05rem); line-height:1.45; }
+
+/* FOOTER */
+footer { border-top:1px solid var(--rule); padding:18px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+.f-name { font-family:'DM Serif Display',serif; font-size:1rem; }
+.f-sub { font-size:10px; color:var(--muted); letter-spacing:1px; }
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="ld-title"><span>The End That Stays</span></div>
+  <div class="ld-bar-wrap"><div class="ld-bar"></div></div>
+  <div class="ld-sub">one last time…</div>
+</div>
+
+<!-- CURSOR -->
+<div id="cur"></div>
+<div id="cur2"></div>
+
+<header>
+  <div class="fi">
+    <p class="eyebrow">Class Farewell · Budget</p>
+    <h1>The End<br><em class="line">That Stays</em></h1>
+  </div>
+  <div class="hdr-right fi d2">
+    <span>Managed by</span>
+    <strong>Vishal Das</strong>
+    <a href="https://instagram.com/____._vishal_" target="_blank">@____._vishal_</a>
+  </div>
+</header>
+
+<div class="ticker-wrap fi d1">
+  <div class="ticker-inner" id="tickerEl"></div>
+</div>
+
+<main>
+
+  <div class="sec fi d2 sr">
+    <div class="sec-head">
+      <span class="sec-label">Budget Overview</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-l">Budget</div><div class="stat-v" id="sBudget">₹0</div></div>
+      <div class="stat"><div class="stat-l">Cost</div><div class="stat-v neg" id="sCost">₹0</div></div>
+      <div class="stat"><div class="stat-l">Left</div><div class="stat-v pos" id="sLeft">₹0</div></div>
+    </div>
+    <div class="bar-head"><span>Spent</span><span id="barPct">0%</span></div>
+    <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+
+  <div class="sec fi d3 sr">
+    <div class="sec-head">
+      <span class="sec-label">Party Items</span>
+      <span class="sec-label" id="itemCount"></span>
+    </div>
+    <div class="items-list" id="itemsList"></div>
+  </div>
+
+  <div class="sec fi d4 sr">
+    <div class="sec-head"><span class="sec-label">Suggest an Item</span></div>
+    <p class="suggest-desc">
+      Got a food idea? Type it below — a ready-to-send message will appear.<br>
+      <strong>Copy it and DM Vishal on Instagram.</strong>
+    </p>
+    <div class="input-row">
+      <input class="s-input" id="suggestIn" type="text" placeholder="e.g. orbit,frooti..." maxlength="60">
+      <button class="btn" onclick="genSuggest()">Make Message</button>
+    </div>
+    <div class="preview-box" id="previewBox">
+      <div class="preview-lbl">Your Message — ready to copy</div>
+      <div class="preview-msg" id="previewMsg"></div>
+      <div class="action-row">
+        <button class="btn" onclick="copyMsg()">Copy Message</button>
+        <button class="btn-o" onclick="openIG()">Open Vishal's IG</button>
+        <span class="copied" id="copiedTxt">✓ Copied!</span>
+      </div>
+    </div>
+    <div class="ig-steps" id="igSteps">
+      <span>① Copy the message above</span>
+      <span>② Open <a href="https://instagram.com/____._vishal_" target="_blank">@____._vishal_</a> on Instagram</span>
+      <span>③ Tap <strong>Message</strong>, paste &amp; send ✦</span>
+    </div>
+  </div>
+
+  <div class="sec fi d5 sr">
+    <div class="sec-head"><span class="sec-label">The Team</span></div>
+    <div class="team-grid" id="teamGrid"></div>
+  </div>
+
+  <div class="sec fi d6 sr">
+    <div class="sec-head"><span class="sec-label">Things We Feel</span></div>
+    <div class="q-list" id="qList"></div>
+  </div>
+
+</main>
+
+<footer>
+  <span class="f-name">The End That Stays</span>
+  <span class="f-sub">Class Farewell · Last Day</span>
+</footer>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║             🎉  EDIT ZONE  🎉            ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<script>
+
+/* ── ORGANIZER ─────────────────────────────── */
+const ORG = {
+  name:  "Vishal Das",
+  ig:    "@____._vishal_",
+  igUrl: "https://instagram.com/____._vishal_"
+};
+
+/* ── TEAM MEMBERS ───────────────────────────
+   Add a member: { name:"Name", role:"Role", ig:"@handle" }
+   Leave ig:"" if no handle needed.
+*/
+const MEMBERS = [
+  { name:"ALSABITH", role:"SANAM VANGUKA",  ig:"@alsab4thhhh" },
+  { name:"DESHATH", role:"ELLARKUM KONDA KODKUKA", ig:"dshay_r_" },
+  ];
+
+/* ── PARTY ITEMS ────────────────────────────
+   image: paste any image URL, or use "" to show emoji instead
+   budget / cost: numbers only (₹ added automatically)
+   ADD MORE: copy a { } block and paste below, separated by a comma
+*/
+const ITEMS = [
+  {
+    name:"TILO", category:"KUDIKAL", emoji:"🍺",
+    image:"https://i.ibb.co/5znFNMQ/download.jpg",
+    budget:50, cost:50, qty:"5 pcs"
+  },
+  {
+    name:"LAYS(10 urupya)", category:"Food", emoji:"🥫",
+    image:"https://i.ibb.co/BKTL4cGD/download.jpg",
+    budget:50, cost:50, qty:"5 pcs"
+  },
+  /* ← paste new items above this line */
+];
+
+/* ── QUOTES ────────────────────────────────
+   Add or remove lines freely.
+*/
+const QUOTES = [
+  "We came as strangers, we leave as stories.",
+  "We leave pieces of ourselves behind.",
+  "Wish some moments lasted a little longer.",
+  "Some names stay longer than others.",
+  "Maybe it was nothing… but it felt like something.",
+  "Some goodbyes are just see you laters in disguise.",
+];
+
+/* ══════════ DO NOT EDIT BELOW ══════════ */
+
+const R = n => '₹' + n.toLocaleString('en-IN');
+
+/* Ticker */
+const tEl = document.getElementById('tickerEl');
+[...QUOTES,...QUOTES].forEach(q=>{ const s=document.createElement('span'); s.textContent=q; tEl.appendChild(s); });
+
+/* Budget */
+(function(){
+  const tb = ITEMS.reduce((a,i)=>a+i.budget,0);
+  const tc = ITEMS.reduce((a,i)=>a+i.cost,0);
+  const rem = tb - tc;
+  const pct = tb ? Math.min(100,Math.round(tc/tb*100)) : 0;
+  document.getElementById('sBudget').textContent = R(tb);
+  document.getElementById('sCost').textContent   = R(tc);
+  const lEl = document.getElementById('sLeft');
+  lEl.textContent = (rem>=0?'+':'')+R(rem);
+  lEl.className   = 'stat-v '+(rem>=0?'pos':'neg');
+  document.getElementById('barPct').textContent  = pct+'%';
+  setTimeout(()=>document.getElementById('barFill').style.width=pct+'%', 400);
+})();
+
+/* Items */
+(function(){
+  document.getElementById('itemCount').textContent = ITEMS.length+' item'+(ITEMS.length!==1?'s':'');
+  const list = document.getElementById('itemsList');
+  ITEMS.forEach(item=>{
+    const r = document.createElement('div'); r.className='item-row';
+    r.innerHTML = `
+      ${item.image ? `<img class="item-img" src="${item.image}" alt="${item.name}" loading="lazy">` : `<div class="item-emoji">${item.emoji}</div>`}
+      <div><div class="item-name">${item.name}</div><div class="item-cat">${item.category} · ${item.qty}</div></div>
+      <div class="item-price"><div class="item-bud">Budget ${R(item.budget)}</div><div class="item-cost">${R(item.cost)}</div></div>`;
+    list.appendChild(r);
+  });
+})();
+
+/* Suggest */
+let curMsg='';
+function genSuggest(){
+  const v = document.getElementById('suggestIn').value.trim();
+  if(!v){ document.getElementById('suggestIn').focus(); return; }
+  curMsg = `Hey Vishal! 👋 I think it would be better to add "${v}" to the party list. Would love to see it there! 🎉`;
+  document.getElementById('previewMsg').textContent = curMsg;
+  document.getElementById('previewBox').style.display='block';
+  document.getElementById('igSteps').style.display='block';
+  document.getElementById('copiedTxt').style.display='none';
+}
+function copyMsg(){
+  navigator.clipboard.writeText(curMsg).then(()=>{
+    const el=document.getElementById('copiedTxt'); el.style.display='inline';
+    setTimeout(()=>el.style.display='none',2500);
+  });
+}
+function openIG(){ window.open(ORG.igUrl,'_blank'); }
+document.getElementById('suggestIn').addEventListener('keydown',e=>{ if(e.key==='Enter') genSuggest(); });
+
+/* Team */
+(function(){
+  const grid = document.getElementById('teamGrid');
+  const mc = document.createElement('div'); mc.className='p-card main';
+  mc.innerHTML=`<div class="p-role">Main Organizer</div><div class="p-name">${ORG.name}</div><div class="p-ig"><a href="${ORG.igUrl}" target="_blank">${ORG.ig}</a></div>`;
+  grid.appendChild(mc);
+  MEMBERS.forEach(m=>{
+    const c=document.createElement('div'); c.className='p-card';
+    c.innerHTML=`<div class="p-role">${m.role}</div><div class="p-name">${m.name}</div>${m.ig?`<div class="p-ig"><a href="https://instagram.com/${m.ig.replace('@','')}" target="_blank">${m.ig}</a></div>`:''}`;
+    grid.appendChild(c);
+  });
+})();
+
+/* Quotes */
+(function(){
+  const list=document.getElementById('qList');
+  QUOTES.forEach((q,i)=>{
+    const r=document.createElement('div'); r.className='q-row';
+    r.innerHTML=`<span class="q-n">0${i+1}</span><span class="q-t">"${q}"</span>`;
+    list.appendChild(r);
+  });
+})();
+
+/* ══════════ ANIMATIONS ══════════ */
+
+/* Loader */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('gone');
+    setTimeout(()=>{ document.querySelector('h1 .line')?.classList.add('drawn'); }, 300);
+    document.querySelectorAll('.stat').forEach((el,i)=>{
+      setTimeout(()=>el.classList.add('pop'), 600 + i*120);
+    });
+    document.querySelectorAll('.item-row').forEach((el,i)=>{
+      setTimeout(()=>el.classList.add('vis'), 800 + i*100);
+    });
+  }, 1500);
+});
+
+/* Cursor */
+(function(){
+  const c = document.getElementById('cur');
+  const c2 = document.getElementById('cur2');
+  if(!c) return;
+  let mx=0,my=0,tx=0,ty=0;
+  document.addEventListener('mousemove', e=>{
+    mx=e.clientX; my=e.clientY;
+    c.style.left=mx+'px'; c.style.top=my+'px';
+  });
+  function trail(){ tx+=(mx-tx)*.13; ty+=(my-ty)*.13; c2.style.left=tx+'px'; c2.style.top=ty+'px'; requestAnimationFrame(trail); }
+  trail();
+  document.querySelectorAll('a,button,.item-row,.q-row,.p-card').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{ c.style.width='14px'; c.style.height='14px'; c2.style.width='44px'; c2.style.height='44px'; });
+    el.addEventListener('mouseleave',()=>{ c.style.width='8px'; c.style.height='8px'; c2.style.width='28px'; c2.style.height='28px'; });
+  });
+  document.addEventListener('mouseleave',()=>{ c.style.opacity='0'; c2.style.opacity='0'; });
+  document.addEventListener('mouseenter',()=>{ c.style.opacity='1'; c2.style.opacity='1'; });
+})();
+
+/* Scroll reveal */
+(function(){
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.sr, .q-row').forEach(el=>io.observe(el));
+})();
+
+/* Preview box slide-down */
+const _origGen = genSuggest;
+window.genSuggest = function(){
+  _origGen();
+  const pb = document.getElementById('previewBox');
+  pb.classList.remove('show');
+  void pb.offsetWidth;
+  if(pb.style.display==='block') pb.classList.add('show');
+};
+</script>
+</body>
+</html>
